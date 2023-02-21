@@ -18,6 +18,7 @@ apply_msg_group = ["阁下群邀请已通过 "]
 addrequestdb = './addrequest.db'
 
 
+
 @parseRequest.handle()
 async def _(bot: Bot, requestevent: RequestEvent):
     botid = str(bot.self_id)
@@ -35,36 +36,53 @@ async def _(bot: Bot, requestevent: RequestEvent):
     time_s = str(time.strftime("%S", time.localtime()))
     timeshort = time_h + time_m + time_s
 
-    msgid = dateshort+'-'+timeshort
+    msgid = 1
+    num = 50
+    while num >= 1:
+        num -= 1
+        if num <= 30:
+            msgid = random.randint(100, 99999999)
 
-    # 判断邀请类型，并加载部分数据
+        conn = sqlite3.connect(addrequestdb)
+        cursor = conn.cursor()
+        cursor.execute('select * from list where msgid = ' + str(msgid))
+        data = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if data == None:
+            num = 0
+        else:
+            msgid += 1
+    msgid = str(msgid)
+
+    # 判断邀请类型，并获取部分数据
     if isinstance(requestevent, FriendRequestEvent):
+        # 好友申请
         type = 'private'
-        reqid = str(requestevent.user_id)
-        requser = reqid
-        message = str(requestevent.comment)
+        reqid = str(requestevent.user_id)  # 要添加好友的qq号
+        requser = reqid  # 请求发起的人
+        message = str(requestevent.comment)  # 验证消息
         flag = requestevent.flag
-        sendmsg = reqid + '请求添加好友,\n'+flag+'\nbot："' + botid + '"\n验证消息为："' + message + '"\n时间:' + date + ',' + timenow + '"\n申请id：:' + msgid
-        apply_msg = "申请收到，等待管理员处理"
-
+        sendmsg = reqid + '请求添加好友,\n申请编号：' + msgid + '\nbot："' + botid + '"\n验证消息为："' + message + '"\n时间:' + date + ',' + timenow  # + '"\n申请id：:' + msgid  # 给管理员发送的消息
+        apply_msg = "申请收到，等待管理员处理"  # 给请求发起人的消息（因为是好友申请，所以不发送
 
     elif isinstance(requestevent, GroupRequestEvent):
-        if requestevent.sub_type != 'invite':
+        # 群邀请
+        if requestevent.sub_type != 'invite':  # 可能是排除不是群邀请的代码
             return
         type = 'group'
-        reqid = str(requestevent.group_id)
-        requser = requestevent.get_user_id()
-        message = str(requestevent.comment)
-        subtype = requestevent.sub_type
+        reqid = str(requestevent.group_id)  # 要添加的QQ群
+        requser = requestevent.get_user_id()  # 请求发起的人
+        message = str(requestevent.comment)  # 验证消息（群邀请貌似为空
         flag = requestevent.flag
-        sendmsg = '收到群邀请\n'+flag+'\nbot："' + botid + '"\n群号：' + reqid + '，\n邀请人：' + requser + '\nsubtype:' + subtype + '\n时间:' + date + ',' + timenow + '"\n申请id：:' + msgid
+        sendmsg = '收到群邀请\n申请编号：' + msgid + '\nbot："' + botid + '"\n群号：' + reqid + '，\n邀请人：' + requser + '\n时间:' + date + ',' + timenow + '"\n申请id：:' + msgid
         apply_msg = "申请收到，等待管理员处理"
-
+        await bot.send_private_msg(user_id=requestevent.user_id, message=apply_msg)  # 给请求发起人发送消息
+        # 检查是否自动添加
         await sleep(2)
-        await bot.send_private_msg(user_id=requestevent.user_id, message=apply_msg)
-        addInfo = await bot.get_group_info(group_id=int(reqid), no_cache=True)
-        if addInfo["member_count"] != 0:
-            sendmsg = sendmsg+'\n或因群人数少,已经添加成功'
+        addinfo = await bot.get_group_info(group_id=int(reqid), no_cache=True)
+        if addinfo["member_count"] != 0:
+            sendmsg = sendmsg + '\n或因群人数少,已经添加成功'
             added = 'on'
             # 通知管理员
             await bot.send_private_msg(user_id=adminqq, message=sendmsg)
@@ -72,56 +90,74 @@ async def _(bot: Bot, requestevent: RequestEvent):
     else:
         return
 
-    # 通知管理员
+    # 通知管理员 审核消息
     await bot.send_private_msg(user_id=adminqq, message=sendmsg)
 
+    ###
     # 处理自动通过
     if type == 'private':
         if auto_approved_private == '1':
             await requestevent.approve(bot)  # 同意申请
             added = 'on'
-
             await sleep(0.5)
-            sendmsg = '已同意好友申请'+reqid
+            sendmsg = '已自动同意好友申请' + reqid
             await bot.send_private_msg(user_id=adminqq, message=sendmsg)  # 通知管理员
-            # 等待腾讯服务器更新
             await sleep(1.5)
             for apply_msg in apply_msg_private:
                 await bot.send_private_msg(user_id=int(reqid), message=apply_msg)  # 发送欢迎消息
                 await sleep(0.3)
         elif auto_approved_private == '-1':
-            await requestevent.reject(bot)  # 同意申请
+            await requestevent.reject(bot)  # 拒绝申请
+            sendmsg = '已自动拒绝好友申请' + reqid
+            await bot.send_private_msg(user_id=adminqq, message=sendmsg)  # 通知管理员
             added = 'on'
 
     elif type == 'group':
         if auto_approved_group == '1':
             await requestevent.approve(bot)  # 同意申请
             added = 'on'
-
+            sendmsg = '已自动同意群邀请' + reqid
+            await bot.send_private_msg(user_id=adminqq, message=sendmsg)  # 通知管理员
+            await sleep(0.5)
             apply_msg = '阁下群邀请已通过'
             await bot.send_private_msg(user_id=int(requser), message=apply_msg)
+        elif auto_approved_private == '-1':
+            await requestevent.reject(bot)  # 拒绝申请
+            added = 'on'
+            sendmsg = '已自动拒绝好友申请' + reqid
+            await bot.send_private_msg(user_id=adminqq, message=sendmsg)  # 通知管理员
+            await sleep(0.5)
+            apply_msg = '群邀请已拒绝'
+            await bot.send_private_msg(user_id=int(requser), message=apply_msg)
 
+    conn = sqlite3.connect(addrequestdb)
+    cursor = conn.cursor()
+    cursor.execute('select * from list where flag = ' + str(flag))
+    data = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if data != None:
+        added = 'on'
+    # 保存数据
     if added == 'off':
-        # 保存数据
         conn = sqlite3.connect(addrequestdb)
         cursor = conn.cursor()
         cursor.execute('replace into list(msgid,botid,type,reqid,requser,message,flag,time) '
-                       'values("' + msgid + '","' + botid + '","' + type + '","' + reqid +
-                       '","' + requser + '","' + message + '","' + flag + '","' + date+','+timenow + '")')
+                       'values("' + msgid + '","' + botid + '","' + type + '","' + reqid + '","' + requser + '","' + message + '","' + flag + '","' + date + ',' + timenow + '")')
         cursor.close()
         conn.commit()
         conn.close()
-
     return
 
 
-# 超级用户使用，同意好友添加机器人请求
+# 管理员使用，同意好友添加机器人请求
 agree_qq_add = on_command("同意", aliases={'拒绝', '查看申请'}, block=False)
+
 
 @agree_qq_add.handle()
 async def _(bot: Bot, messageevent: MessageEvent):
-    qq = messageevent.get_user_id()
-    if qq == adminqq:
+    qq = str(messageevent.get_user_id())
+    if int(qq) == adminqq:
         botid = str(bot.self_id)
         errmsg = ''
         message = messageevent.get_message()
@@ -133,26 +169,26 @@ async def _(bot: Bot, messageevent: MessageEvent):
             command2 = commands[1]
         else:
             command2 = ''
-
+        print(command)
         if '同意' == command:
-            flag = command2
+            msgid = command2
             approve = True
         elif '拒绝' == command:
-            flag = command2
+            msgid = command2
             approve = False
         else:
             approve = 'None'
-            flag = ''
+            msgid = '0'
+
         if approve != 'None':
             # 配置列表
             conn = sqlite3.connect(addrequestdb)
             cursor = conn.cursor()
-            cursor.execute('select * from list where flag = ' + flag)
+            cursor.execute('select * from list where msgid = ' + msgid)
             data = cursor.fetchone()
             cursor.close()
             conn.close()
-            if data != None:
-                data_msgid = data[0]
+            if data is not None:
                 data_botid = data[1]
                 data_type = data[2]
                 data_reqid = data[3]
@@ -166,38 +202,43 @@ async def _(bot: Bot, messageevent: MessageEvent):
                         for info in allinfolist:
                             userid = str(info['user_id'])
                             friend_list.append(userid)
+                        friend_list = []
                         if data_reqid in friend_list:
                             errmsg = '已添加，请勿重复添加'
                         else:
-                            await bot.set_friend_add_request(flag=flag, approve=approve)
-                            conn = sqlite3.connect(addrequestdb)
-                            cursor = conn.cursor()
-                            cursor.execute('delete from list where flag= ' + flag)
-                            conn.commit()
-                            cursor.close()
-                            conn.close()
-                            await sleep(0.5)
-                            sendmsg = '已同意好友申请' + data_reqid
-                            await bot.send_private_msg(user_id=adminqq, message=sendmsg)  # 通知管理员
-                            # 等待腾讯服务器更新
-                            await sleep(1.5)
-                            for apply_msg in apply_msg_private:
-                                await bot.send_private_msg(user_id=int(data_reqid), message=apply_msg)  # 发送欢迎消息
-                                await sleep(0.3)
+                            try:
+                                await bot.set_friend_add_request(flag=data_flag, approve=approve)
+                            except Exception as e:
+                                print('error-:')
+                                print(str(e))
+                        conn = sqlite3.connect(addrequestdb)
+                        cursor = conn.cursor()
+                        cursor.execute('delete from list where msgid = ' + msgid)
+                        conn.commit()
+                        cursor.close()
+                        conn.close()
+                        await sleep(0.5)
+                        sendmsg = '已同意好友申请' + data_reqid
+                        await bot.send_private_msg(user_id=adminqq, message=sendmsg)  # 通知管理员
+                        # 等待腾讯服务器更新
+                        await sleep(1.5)
+                        for apply_msg in apply_msg_private:
+                            await bot.send_private_msg(user_id=int(data_reqid), message=apply_msg)  # 发送欢迎消息
+                            await sleep(0.3)
                     elif data_type == 'group':
                         group_list = []
                         allinfolist = await bot.get_group_list()
                         for info in allinfolist:
                             groupcode = str(info['group_id'])
-                            group_list = group_list.append(groupcode)
+                            group_list.append(groupcode)
                         if data_reqid in group_list:
                             errmsg = '已添加，请勿重复添加'
                         else:
                             data_subtype = data_message
-                            await bot.set_group_add_request(flag=flag, approve=approve, sub_type=data_subtype)
+                            await bot.set_group_add_request(flag=data_flag, approve=approve, sub_type=data_subtype)
                             conn = sqlite3.connect(addrequestdb)
                             cursor = conn.cursor()
-                            cursor.execute('delete from list where flag= ' + flag)
+                            cursor.execute('delete from list where flag= ' + data_flag)
                             conn.commit()
                             cursor.close()
                             conn.close()
@@ -207,13 +248,11 @@ async def _(bot: Bot, messageevent: MessageEvent):
                                 await bot.send_private_msg(user_id=int(data_requser), message=apply_msg)  # 发送欢迎消息
                                 await sleep(0.3)
             else:
-                errmsg = '找不到该申请'
+                errmsg = '找不到该申请，请发送\n“/同意 [申请编号]”\n来同意申请'
             if errmsg != '':
                 await bot.send_private_msg(user_id=int(qq), message=errmsg)  # 返回错误信息
         else:
             if '查看申请' == command:
-                print('chakanshenqing')
-
                 # 配置列表
                 conn = sqlite3.connect(addrequestdb)
                 cursor = conn.cursor()
@@ -223,7 +262,7 @@ async def _(bot: Bot, messageevent: MessageEvent):
                 conn.commit()
                 conn.close()
                 msg = ''
-                if alldata != None:
+                if alldata is not None:
                     for data in alldata:
                         msgid = data[0]
                         botid = data[1]
@@ -233,17 +272,23 @@ async def _(bot: Bot, messageevent: MessageEvent):
                         message = data[5]
                         flag = data[6]
                         date = data[7]
-                        print('data'+str(data))
+                        print('data' + str(data))
                         if type == 'private':
-                            sendmsg = '收到好友申请\n'+flag+'\nbot："' + botid + '"\nqq号："' + reqid + '"\n验证消息为："' + message + '"\n时间:' + date + '"\n申请id：:' + msgid
+                            sendmsg = '收到好友申请\n申请编号：' + msgid + '\nbot："' + botid + '"\nqq号："' + reqid + '"\n验证消息为："' + message + '"\n时间:' + date + '"\n申请id：:' + msgid
                         else:
-                            sendmsg = '收到群邀请\n' + flag + '\nbot："' + botid + '"\n群号：' + reqid + '，\n邀请人：' + requser + '\n时间:' + date + '"\n申请id：:' + msgid
+                            sendmsg = '收到群邀请\n申请编号：' + msgid + '\nbot："' + botid + '"\n群号：' + reqid + '，\n邀请人：' + requser + '\n时间:' + date + '"\n申请id：:' + msgid
                         await bot.send_private_msg(user_id=int(qq), message=sendmsg)
                         await sleep(0.3)
                 else:
-                    returnmsg = '无好友申请/群邀请数据'
+                    sendmsg = '无好友申请/群邀请数据'
+                    await bot.send_private_msg(user_id=int(qq), message=sendmsg)
             elif '删除所有申请' == command:
                 print('删除所有申请')
+            elif '帮助' == command:
+                print('帮助')
+                sendmsg = '指令列表\n/同意 [申请编号]\n/拒绝 [申请编号]\n例如“/同意 1”\n查看申请\n删除所有申请'
+                await bot.send_private_msg(user_id=int(qq), message=sendmsg)
+
     else:
         print('权限不足')
 
