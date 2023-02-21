@@ -3,19 +3,23 @@ from nonebot.adapters.onebot.v11 import Bot, MessageEvent, FriendRequestEvent, P
 from nonebot import on_command, on_request, on_notice, require
 from nonebot import get_driver, get_bot, on_request
 import sqlite3
+import random
 # 添加请求命令
 parseRequest = on_request(priority=1, block=True)
 
 
-# Config 配置选项
-adminqq = 123456
+#  Config 配置选项 #
+# 管理员qq号
+adminqq = 12345678
 # 自动处理：（同意，1）（审核，0）（拒绝，-1）
 auto_approved_private = '0'
 auto_approved_group = '0'
+# 数据库文件位置
+addrequestdb = './addrequest.db'
+# 自动回复消息
 apply_msg_private = ["阁下的好友请求已通过，请在群成员页面邀请bot加群（bot不会主动加群）待管理员审核后进群。",
                      "如需要帮助可使用<help>(不含括号)查看帮助"]
 apply_msg_group = ["阁下群邀请已通过 "]
-addrequestdb = './addrequest.db'
 
 
 
@@ -41,7 +45,7 @@ async def _(bot: Bot, requestevent: RequestEvent):
     while num >= 1:
         num -= 1
         if num <= 30:
-            msgid = random.randint(100, 99999999)
+            msgid = random.randint(100, 999999)
 
         conn = sqlite3.connect(addrequestdb)
         cursor = conn.cursor()
@@ -64,7 +68,7 @@ async def _(bot: Bot, requestevent: RequestEvent):
         message = str(requestevent.comment)  # 验证消息
         flag = requestevent.flag
         sendmsg = reqid + '请求添加好友,\n申请编号：' + msgid + '\nbot："' + botid + '"\n验证消息为："' + message + '"\n时间:' + date + ',' + timenow  # + '"\n申请id：:' + msgid  # 给管理员发送的消息
-        apply_msg = "申请收到，等待管理员处理"  # 给请求发起人的消息（因为是好友申请，所以不发送
+        apply_msg = ""  # 给请求发起人的消息（因为是好友申请，所以不发送
 
     elif isinstance(requestevent, GroupRequestEvent):
         # 群邀请
