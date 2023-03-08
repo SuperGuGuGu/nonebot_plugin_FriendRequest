@@ -7,6 +7,8 @@ import random
 # 添加请求命令
 parseRequest = on_request(priority=1, block=True)
 
+# Github网址：https://github.com/SuperGuGuGu/nonebot_plugin_FriendRequest
+
 
 #  Config 配置选项 #
 # 管理员qq号
@@ -20,7 +22,7 @@ addrequestdb = './addrequest.db'
 apply_msg_private = ["阁下的好友请求已通过，请在群成员页面邀请bot加群（bot不会主动加群）待管理员审核后进群。",
                      "如需要帮助可使用<help>(不含括号)查看帮助"]
 apply_msg_group = ["阁下群邀请已通过 "]
-
+apply_msg_group_reject = ["管理员已拒绝该群邀请。如有疑问请联系管理员"]
 
 
 @parseRequest.handle()
@@ -168,7 +170,7 @@ async def _(bot: Bot, requestevent: RequestEvent):
 # 管理员使用，同意好友添加机器人请求
 agree_qq_add = on_command("同意", aliases={'拒绝', '查看申请'}, block=False)
 
-
+# github.com/SuperGuGuGu/nonebot_plugin_FriendRequest
 @agree_qq_add.handle()
 async def _(bot: Bot, messageevent: MessageEvent):
     qq = str(messageevent.get_user_id())

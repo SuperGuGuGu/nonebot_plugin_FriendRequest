@@ -14,10 +14,13 @@
 -   ~~nb plugin install nonebot-plugin-~~（插件还没写完，别急
 -  下载文件到Plugins，然后加载运行
 # 示例
-help.jpg
-同意申请.jpg
-拒绝申请.jpg
-配置自动同意.jpg
+![](README_md_files/78e9b280-bdc2-11ed-8876-9962f3e3ccf4.jpeg?v=1&type=image)
+![](README_md_files/6dcdc3a0-bdc2-11ed-8876-9962f3e3ccf4.jpeg?v=1&type=image)
+
+# 规划
+
+ - 将配置写到配置文件中，并可以通过命令修改配置
+ - 更好看的指令帮助界面
 
 # 参考内容
 
@@ -30,3 +33,8 @@ help.jpg
 - 感谢家里叫做招财的猫猫
 - 感谢家里叫做进宝的猫猫
 - 感谢家里叫做多多的~~猫猫~~狗狗
+
+# 交流
+
+- 交流群[鸽子窝里有鸽子（291788927）](https://qm.qq.com/cgi-bin/qm/qr?k=QhOk7Z2jaXBOnAFfRafEy9g5WoiETQhy&jump_from=webapi&authKey=fCvx/auG+QynlI8bcFNs4Csr2soR8UjzuwLqrDN9F8LDwJrwePKoe89psqpozg/m)
+- 有任何疑问或者建议都可以来群里提！
