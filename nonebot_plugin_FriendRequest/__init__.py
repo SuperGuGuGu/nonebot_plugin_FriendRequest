@@ -45,7 +45,7 @@ async def _(bot: Bot, requestevent: RequestEvent):
     while num >= 1:
         num -= 1
         if num <= 30:
-            msgid = random.randint(100, 999999)
+            msgid = random.randint(100, 99999999)
 
         conn = sqlite3.connect(addrequestdb)
         cursor = conn.cursor()
@@ -67,8 +67,8 @@ async def _(bot: Bot, requestevent: RequestEvent):
         requser = reqid  # 请求发起的人
         message = str(requestevent.comment)  # 验证消息
         flag = requestevent.flag
-        sendmsg = reqid + '请求添加好友,\n申请编号：' + msgid + '\nbot："' + botid + '"\n验证消息为："' + message + '"\n时间:' + date + ',' + timenow  # + '"\n申请id：:' + msgid  # 给管理员发送的消息
-        apply_msg = ""  # 给请求发起人的消息（因为是好友申请，所以不发送
+        sendmsg = reqid + '请求添加好友,\n申请编号：' + msgid + '\nbot："' + botid + '"\n验证消息为："' + message + '"\n时间:' + date + ',' + timenow  # 给管理员发送的消息
+        apply_msg = "申请收到，等待管理员处理"  # 给请求发起人的消息（因为是好友申请，所以不发送
 
     elif isinstance(requestevent, GroupRequestEvent):
         # 群邀请
@@ -79,7 +79,7 @@ async def _(bot: Bot, requestevent: RequestEvent):
         requser = requestevent.get_user_id()  # 请求发起的人
         message = str(requestevent.comment)  # 验证消息（群邀请貌似为空
         flag = requestevent.flag
-        sendmsg = '收到群邀请\n申请编号：' + msgid + '\nbot："' + botid + '"\n群号：' + reqid + '，\n邀请人：' + requser + '\n时间:' + date + ',' + timenow + '"\n申请id：:' + msgid
+        sendmsg = '收到群邀请\n申请编号：' + msgid + '\nbot："' + botid + '"\n群号：' + reqid + '，\n邀请人：' + requser + '\n时间:' + date + ',' + timenow
         apply_msg = "申请收到，等待管理员处理"
         await bot.send_private_msg(user_id=requestevent.user_id, message=apply_msg)  # 给请求发起人发送消息
         # 检查是否自动添加
@@ -97,7 +97,6 @@ async def _(bot: Bot, requestevent: RequestEvent):
     # 通知管理员 审核消息
     await bot.send_private_msg(user_id=adminqq, message=sendmsg)
 
-    ###
     # 处理自动通过
     if type == 'private':
         if auto_approved_private == '1':
@@ -144,6 +143,18 @@ async def _(bot: Bot, requestevent: RequestEvent):
         added = 'on'
     # 保存数据
     if added == 'off':
+        # 查看有无重复申请
+        conn = sqlite3.connect(addrequestdb)
+        cursor = conn.cursor()
+        cursor.execute('select * from list where reqid = ' + reqid)
+        data = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        # 判断有无已申请数据
+        if data is not None:
+            # 有申请，复用请求id
+            msgid = data[0]
+
         conn = sqlite3.connect(addrequestdb)
         cursor = conn.cursor()
         cursor.execute('replace into list(msgid,botid,type,reqid,requser,message,flag,time) '
